@@ -10,7 +10,8 @@ import { MainModule } from './Main/main.module';
     MongooseModule.forRoot('mongodb://localhost:27017/9guff'),
     AuthModule,
     postModule,
-    MainModule
+    MainModule,
+    AppModule
   ],
   controllers: [AppController],
   providers: [AppService],

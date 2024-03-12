@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Put, Req, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "src/gaurds/Authgaurd.gaurd";
 import { MainService } from "./main.service";
 import { requestobjectdto } from "src/dto/requestobject.dto";
@@ -26,6 +26,15 @@ export class MainController {
         @Param("id") id: string
     ) {
         return this.mainService.getPostByCategory(req, id);
+    }
+
+    @UseGuards(AuthGuard)
+    @Put("markAsRead/:id")
+    async markAsRead(
+        @Req() req: requestobjectdto,
+        @Param("id") id: string
+    ) {
+        return this.mainService.markSeenNoti(req, id);
     }
 
 

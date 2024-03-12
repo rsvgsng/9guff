@@ -61,9 +61,19 @@ export class PostController {
     @Get("singlePost/:id")
     async singlePost(
         @Req() req: requestobjectdto,
-        @Param("id") id: string
+        @Param("id") id: string,
+        @Query("type") type: 'comments' | 'reactions' | 'post',
     ) {
-        return this.postService.getSinglePost(req, id);
+        return this.postService.getSinglePost(req, id, type);
+    }
+
+
+    @Get("feed")
+    async getFeed(
+        @Query("page") page: number,
+        @Query("limit") limit: number
+    ) {
+        return this.postService.getFeed(page, limit)
     }
 
 }

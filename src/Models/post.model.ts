@@ -12,6 +12,7 @@ export interface PostSchemaDTO {
         user?: string;
         reaction?: string;
     }[];
+    audioLength?: string;
     audioUrl?: string;
     postID?: string;
     reactions?: {
@@ -23,6 +24,7 @@ export interface PostSchemaDTO {
         angry?: number;
     };
     views?: number;
+    reactionCount?: number;
     comments?: {
         user?: string;
         comment?: string;
@@ -44,6 +46,7 @@ export interface PostSchema extends mongoose.Document {
     createdAt?: Date;
     category?: string;
     photoUrl?: string;
+    audioLength?: string;
     audioUrl?: string;
     reactions?: {
         crazy?: number;
@@ -58,6 +61,7 @@ export interface PostSchema extends mongoose.Document {
         user?: string;
         reaction?: string;
     }[];
+    reactionCount?: number;
     comments?: {
         user?: string;
         comment?: string;
@@ -73,12 +77,14 @@ export interface PostSchema extends mongoose.Document {
 export const Posts = new mongoose.Schema<PostSchema>({
     title: { type: String, required: false },
     photoUrl: { type: String, default: null },
+    audioLength: { type: String, default: null },
     audioUrl: { type: String, default: null },
     category: { type: String, required: true },
     reactedBy: [{
         user: { type: String, required: true },
         reaction: { type: String, required: true }
     }],
+    reactionCount: { type: Number, default: 0 },
     postID: { type: String, required: true, unique: true },
     content: {
         type: String,

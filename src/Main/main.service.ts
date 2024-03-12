@@ -57,7 +57,6 @@ export class MainService {
         try {
             let noti = await this.NotificationModel.find({ owner: req.user }).sort({ createdAt: -1 }).limit(10);
             let x = []
-            console.log(noti);
             noti.map((n) => {
                 if (n.actionBy.length === 0) return
                 x.push
@@ -65,11 +64,14 @@ export class MainService {
                         type: n.NotificationType,
                         message: this.formatNotification(n.actionBy),
                         postID: n.postID,
+                        _id: n._id,
                         time: n.actionBy[n.actionBy.length - 1]?.actionAt,
                         isSeen: n.isSeen
                     })
             });
-
+            x.sort((a, b) => {
+                return b.time - a.time
+            })
             delete req.user;
             return new SuccessDTO('Notifications retrieved successfully', x);
         } catch (error) {
@@ -90,6 +92,27 @@ export class MainService {
             return new SuccessDTO('Posts retrieved successfully', post);
         } catch (error) {
             throw new NotAcceptableException('Error retrieving posts');
+        }
+    }
+
+    async markSeenNoti(
+        req: requestobjectdto,
+        id: string
+    ) {
+        try {
+            let noti = await this.NotificationModel.find({ owner: req.user });
+            if (!noti) {
+                throw new NotAcceptableException('Something went wrong!');
+            }
+            let notiIndex = noti.find((n) => n._id.toString() === id.toString());
+            if (!notiIndex) {
+                throw new NotAcceptableException('Notification not found');
+            }
+            notiIndex.isSeen = true;
+            await notiIndex.save();
+            return new SuccessDTO('Notification marked as seen successfully');
+        } catch (error) {
+            throw error
         }
     }
 

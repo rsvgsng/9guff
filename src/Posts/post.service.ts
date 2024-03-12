@@ -132,6 +132,7 @@ export class postService {
             let noti = await this.NotificationModel.findOne({
                 owner: post.user,
                 postID: postID,
+                isSeen: false,
                 NotificationType: 'comment'
             })
             if (req.user !== post.user) {
@@ -170,10 +171,12 @@ export class postService {
             if (Object.keys(reply).length === 0) throw new NotAcceptableException("Reply cannot be empty.")
             let a = await this.PostModel.findOne({
                 "comments.commentID": commentID
-            }).select('comments')
+            }).select('comments postID')
+
             if (!a) throw new NotAcceptableException("Comment not found.")
             let comment = a.comments.find(x => x.commentID === commentID)
             if (!comment) throw new NotAcceptableException("Comment not found.")
+            let postId = a.postID;
             if (comment.user !== req.user) {
                 let newNoti = new this.NotificationModel({
                     owner: comment.user,
@@ -188,7 +191,8 @@ export class postService {
             }
             comment.replies.push({
                 user: req.user,
-                comment: reply.comment
+                comment: reply.comment,
+
             })
             await a.save();
             return new SuccessDTO('ok', a);
@@ -199,19 +203,56 @@ export class postService {
 
     async getSinglePost(
         req: requestobjectdto,
-        postID: string
+        postID: string,
+        type: 'comments' | 'reactions' | 'post',
     ): Promise<SuccessDTO | NotAcceptableException> {
-        try {
-            let post = await this.PostModel.findOne({
-                postID: postID
-            }).select('-reactedBy -__v ')
-            if (!post) throw new NotAcceptableException("Post not found.")
-            post.views = post.views + 1;
-            await post.save();
-            return new SuccessDTO('ok', post);
-        } catch (error) {
-            throw new NotAcceptableException(error.message);
+        // Make notification seen todo 
+        if (type == 'post') {
+            try {
+                let post = await this.PostModel.findOne({
+                    postID: postID
+                }).select('-reactedBy -__v -comments ')
+
+                if (!post) throw new NotAcceptableException("Post not found.")
+                let totalReactions = post.reactions.crazy + post.reactions.love + post.reactions.haha + post.reactions.wow + post.reactions.sad + post.reactions.angry;
+                post.reactionCount = totalReactions;
+                post.views = post.views + 1;
+                await post.save();
+                post.reactions = undefined;
+                return new SuccessDTO('ok', post);
+            } catch (error) {
+                throw new NotAcceptableException(error.message);
+
+            }
         }
+
+        if (type == 'reactions') {
+            try {
+                let post = await this.PostModel.findOne({
+                    postID: postID
+                }).select('-comments -__v -content -title -photoUrl -audioUrl -user -postID -createdAt -updatedAt -views -audioLength -reactedBy -reactionCount -category ')
+                if (!post) throw new NotAcceptableException("Post not found.")
+
+                return new SuccessDTO('ok', post);
+            } catch (error) {
+                throw new NotAcceptableException(error.message);
+            }
+        }
+        if (type == 'comments') {
+            try {
+                let post = await this.PostModel.findOne({
+                    postID: postID
+                }).select('-reactions -__v -content -title -photoUrl -audioUrl -user -postID -createdAt -updatedAt -views -audioLength -reactedBy -reactionCount -category ')
+                if (!post) throw new NotAcceptableException("Post not found.")
+
+                return new SuccessDTO('ok', post);
+            } catch (error) {
+                throw new NotAcceptableException(error.message);
+            }
+        }
+
+        return new NotAcceptableException("Invalid type.")
+
     }
 
 
@@ -243,11 +284,11 @@ export class postService {
                     let notiDelete = await this.NotificationModel.findOne({
                         owner: post.user,
                         postID: postID,
-                        NotificationType: 'reacted'
+                        NotificationType: 'reacted',
                     })
-                    notiDelete.actionBy = notiDelete.actionBy.filter(x => x.user !== req.user)
+                    notiDelete.actionBy = notiDelete?.actionBy?.filter(x => x.user !== req.user)
                     await notiDelete.save();
-                    return new SuccessDTO('ok', post);
+                    return new SuccessDTO('ok');
                 }
 
                 post.reactions[isReacated.reaction] = post.reactions[isReacated.reaction] - 1;
@@ -271,7 +312,7 @@ export class postService {
                     await newNoti.save();
                 }
                 await post.save()
-                return new SuccessDTO('ok', post);
+                return new SuccessDTO('ok');
             }
             post.reactions[reaction] = post.reactions[reaction] + 1;
             post.reactedBy.push({
@@ -297,12 +338,39 @@ export class postService {
                 })
                 await noti.save();
             }
+
             await post.save();
-            return new SuccessDTO('ok', post);
+            return new SuccessDTO('ok');
         } catch (error) {
             console.log(error)
+
             throw new NotAcceptableException(error.message);
         }
     }
 
+
+
+    async getFeed(
+        page: number,
+        limit: number
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            const count = await this.PostModel.countDocuments({}).exec();
+            let posts = await this.PostModel.find({}).select("-reactions  -comments ").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec();
+            posts = posts.map(post => {
+                post.reactionCount = post.reactedBy?.length;
+                post.reactedBy = undefined;
+                if (post.content && post.content.length > 100) {
+                    post.content = post.content.substring(0, 100) + "..."; // Trim and add ellipsis
+                }
+                return post;
+            });
+            return new SuccessDTO('ok', {
+                posts: posts,
+                count: count
+            });
+        } catch (error) {
+            throw new NotAcceptableException(error.message);
+        }
+    }
 }
