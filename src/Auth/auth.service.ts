@@ -5,6 +5,7 @@ import { UserSchema } from "src/Models/users.model";
 import { UserDto } from "src/dto/users.dto";
 import { SuccessDTO } from "src/dto/response.dto";
 import * as jwt from 'jsonwebtoken'
+const { verify } = require('hcaptcha');
 
 @Injectable()
 export class authService {
@@ -36,12 +37,16 @@ export class authService {
     async signup(
         user: UserDto
     ): Promise<SuccessDTO | ForbiddenException> {
+        let secret = '0x1A9c0316c55Cf982497F1Be6b275Ed0A654d947d'
         try {
-            const { username, pincode } = user
+            const { username, pincode, htoken } = user
+            if (!htoken) throw new ForbiddenException('Please provide a valid token')
             if (!username || !pincode) throw new ForbiddenException('Please provide a username and pincode')
             if (pincode.length !== 4) throw new ForbiddenException('Pincode must be 4 digits')
             if (username.length < 3) throw new ForbiddenException('Username must be at least 3 characters')
             if (username.length > 20) throw new ForbiddenException('Username must be less than 20 characters')
+            let isValid = await verify(secret, htoken)
+            if (isValid.success === false) throw new ForbiddenException('Invalid token')
             const userExists = await this.ClientModel.findOne({ username })
             if (userExists) throw new ForbiddenException('Username already exists')
             const newUser = new this.ClientModel(user)
@@ -50,8 +55,5 @@ export class authService {
         } catch (error) {
             throw new ForbiddenException(error.message)
         }
-
     }
-
-
 }
