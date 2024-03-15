@@ -1,4 +1,4 @@
-import { Injectable, NotAcceptableException, Post } from "@nestjs/common";
+import { Injectable, NotAcceptableException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { PostSchema, PostSchemaDTO } from "src/Models/post.model";
@@ -40,21 +40,25 @@ export class postService {
                 if (post.title.length <= 0 && post.content.length <= 0) {
                     throw new NotAcceptableException("Basic fields are required to create a post.");
                 }
+                if (post.title.length > 100) throw new NotAcceptableException("Title must be less than 100 characters long.");
                 if (post.content.length < 10) throw new NotAcceptableException("Content must be at least 10 characters long.");
                 if (post.content.length > 5000) throw new NotAcceptableException("Content must be less than 5000 characters long.");
                 post.user = req.user;
                 post.title = post.title ? post.title : null;
                 post.postID = generateRandomId(20);
                 const newPost = new this.PostModel(post);
+                console.log(newPost)
                 await newPost.save();
                 return new SuccessDTO("Post created successfully.");
             }
 
             if (posttype == 'image') {
                 if (file.mimetype !== 'image/jpeg' && file.mimetype !== 'image/png' && file.mimetype !== 'image/jpg') throw new NotAcceptableException("Invalid file type. Only jpeg, jpg and png files are allowed.");
+                if (file.size > 5000000) throw new NotAcceptableException("File size must be less than 5mb.");
                 if (post.title.length <= 0 && post.content.length <= 0) {
                     throw new NotAcceptableException("Either title or content is required to create a post.");
                 }
+                if (post.title.length > 100) throw new NotAcceptableException("Title must be less than 100 characters long.");
                 if (post.content.length < 10) throw new NotAcceptableException("Content must be at least 10 characters long.");
                 if (post.content.length > 5000) throw new NotAcceptableException("Content must be less than 5000 characters long.");
                 post.user = req.user;
@@ -76,15 +80,17 @@ export class postService {
             }
 
             if (posttype == 'audio') {
-                if (file.mimetype !== 'audio/mpeg' && file.mimetype !== 'audio/mp3') throw new NotAcceptableException("Invalid file type. Only mp3 files are allowed.");
+                if (file.mimetype !== 'audio/mpeg' && file.mimetype !== 'audio/webm') throw new NotAcceptableException("Invalid file type. Only webm files are allowed.");
                 if (post.title.length <= 0 && post.content.length <= 0) {
                     throw new NotAcceptableException("Either title or content is required to create a post.");
                 }
-                if (post.content.length < 10) throw new NotAcceptableException("Content must be at least 10 characters long.");
+
+                if (post.title.length > 100) throw new NotAcceptableException("Title must be less than 100 characters long.");
+                if (post.content.length < 5) throw new NotAcceptableException("Content must be at least 5 characters long.");
                 if (post.content.length > 5000) throw new NotAcceptableException("Content must be less than 5000 characters long.");
                 post.user = req.user;
                 post.title = post.title ? post.title : null;
-                post.content = post.content ? post.content : null;
+                post.userDP = post.content = post.content ? post.content : null;
                 post.postID = generateRandomId(20);
                 if (!fs.existsSync('uploads')) {
                     fs.mkdirSync('uploads');
@@ -95,6 +101,7 @@ export class postService {
                 let filePath = 'uploads/' + fileName;
                 fs.writeFileSync(filePath, file.buffer);
                 post.audioUrl = fileName;
+                post.audioLength = post.audioLength;
                 const newPost = new this.PostModel(post);
                 await newPost.save();
                 return new SuccessDTO("Post created successfully.");
@@ -102,6 +109,7 @@ export class postService {
 
 
         } catch (error) {
+            console.log(error)
             throw new NotAcceptableException(error.message);
         }
 
@@ -125,7 +133,7 @@ export class postService {
             if (!post) throw new NotAcceptableException("Post not found.")
             post.comments.push({
                 user: req.user,
-                commentID: generateRandomId(20),
+
                 comment: comment.comment,
             })
             await post.save();
@@ -160,8 +168,6 @@ export class postService {
             throw new NotAcceptableException(error.message);
         }
     }
-
-
     async replyToComment(
         reply: commentDTO,
         req: requestobjectdto,
@@ -170,13 +176,12 @@ export class postService {
         try {
             if (Object.keys(reply).length === 0) throw new NotAcceptableException("Reply cannot be empty.")
             let a = await this.PostModel.findOne({
-                "comments.commentID": commentID
+                "comments._id": commentID
             }).select('comments postID')
-
             if (!a) throw new NotAcceptableException("Comment not found.")
-            let comment = a.comments.find(x => x.commentID === commentID)
+            let comment = a.comments.find(x => x._id.toString() === commentID)
+            console.log(comment)
             if (!comment) throw new NotAcceptableException("Comment not found.")
-            let postId = a.postID;
             if (comment.user !== req.user) {
                 let newNoti = new this.NotificationModel({
                     owner: comment.user,
@@ -255,7 +260,6 @@ export class postService {
 
     }
 
-
     async reactPost(
         req: requestobjectdto,
         postID: string,
@@ -276,6 +280,7 @@ export class postService {
                 NotificationType: 'reacted'
             })
             let isReacated = post.reactedBy.find(x => x.user === req.user)
+
             if (isReacated) {
                 if (isReacated.reaction === reaction) {
                     post.reactions[reaction] = post.reactions[reaction] - 1;
@@ -310,6 +315,7 @@ export class postService {
                         }]
                     })
                     await newNoti.save();
+                    return
                 }
                 await post.save()
                 return new SuccessDTO('ok');
@@ -338,7 +344,6 @@ export class postService {
                 })
                 await noti.save();
             }
-
             await post.save();
             return new SuccessDTO('ok');
         } catch (error) {
@@ -357,6 +362,7 @@ export class postService {
         try {
             const count = await this.PostModel.countDocuments({}).exec();
             let posts = await this.PostModel.find({}).select("-reactions  -comments ").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec();
+
             posts = posts.map(post => {
                 post.reactionCount = post.reactedBy?.length;
                 post.reactedBy = undefined;

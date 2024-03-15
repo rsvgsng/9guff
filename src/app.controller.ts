@@ -17,4 +17,12 @@ export class AppController {
   ) {
     return this.appService.fetchImage(id, res);
   }
+
+  @Get("/storage/dp/:id")
+  fetchDPImage(
+    @Param("id") id: string,
+    @Res() res: Response
+  ) {
+    return this.appService.fetchDPImage(id, res);
+  }
 }

@@ -19,7 +19,7 @@ export class authService {
         try {
             const { username, pincode } = user
             if (!username || !pincode) throw new UnauthorizedException('Please provide a username and pincode')
-            const userExists = await this.ClientModel.findOne({ username })
+            const userExists = await this.ClientModel.findOne({ username: username.toLowerCase().trim() })
             if (!userExists) throw new UnauthorizedException('Invalid  username or pincode')
             if (userExists.pincode !== pincode) throw new UnauthorizedException('Invalid username or pincode')
             let token = jwt.sign({
@@ -44,15 +44,20 @@ export class authService {
             if (!username || !pincode) throw new ForbiddenException('Please provide a username and pincode')
             if (pincode.length !== 4) throw new ForbiddenException('Pincode must be 4 digits')
             if (username.length < 3) throw new ForbiddenException('Username must be at least 3 characters')
-            if (username.length > 20) throw new ForbiddenException('Username must be less than 20 characters')
+            if (username.length > 10) throw new ForbiddenException('Username must be less than 10 characters')
+            if (username === 'admin') throw new ForbiddenException('Username not allowed')
+            if (username === 'default') throw new ForbiddenException('Username not allowed')
+            if (!/^[a-zA-Z0-9_]*$/.test(username)) throw new ForbiddenException('Username must contain only letters, numbers and underscores')
             let isValid = await verify(secret, htoken)
             if (isValid.success === false) throw new ForbiddenException('Invalid token')
             const userExists = await this.ClientModel.findOne({ username })
             if (userExists) throw new ForbiddenException('Username already exists')
+            user.username = username.toLowerCase()
             const newUser = new this.ClientModel(user)
             await newUser.save()
             return new SuccessDTO('User created successfully')
         } catch (error) {
+            console.log(error)
             throw new ForbiddenException(error.message)
         }
     }

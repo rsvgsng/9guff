@@ -3,16 +3,23 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NotificationsSchema } from "src/Models/notifications.model";
 import { PostSchema } from "src/Models/post.model";
+import { UserSchema } from "src/Models/users.model";
 import { requestobjectdto } from "src/dto/requestobject.dto";
 import { SuccessDTO } from "src/dto/response.dto";
+import { generateRandomId } from "src/utils/generaterandomid.util";
+import * as fs from 'fs'
+import path from "path";
 
 @Injectable()
 export class MainService {
+
     constructor(
         @InjectModel('Notifications')
         private NotificationModel: Model<NotificationsSchema>,
         @InjectModel('Posts')
-        private PostModel: Model<PostSchema>
+        private PostModel: Model<PostSchema>,
+        @InjectModel('Users')
+        private UserModel: Model<UserSchema>,
     ) { }
 
     formatNotification(actionBy?: {
@@ -56,6 +63,7 @@ export class MainService {
     async getNotifications(req: requestobjectdto): Promise<SuccessDTO | NotAcceptableException> {
         try {
             let noti = await this.NotificationModel.find({ owner: req.user }).sort({ createdAt: -1 }).limit(10);
+
             let x = []
             noti.map((n) => {
                 if (n.actionBy.length === 0) return
@@ -87,8 +95,16 @@ export class MainService {
             if (!cats.includes(catID)) {
                 throw new NotAcceptableException('Invalid category');
             }
-            let post = await this.PostModel.find({ category: catID }).sort({ createdAt: -1 }).limit(10)
+            let post = await this.PostModel.find({ category: catID }).sort({ createdAt: -1 }).select('').limit(10)
                 .select('-comments')
+            post = post.map(post => {
+                post.reactionCount = post.reactedBy?.length;
+                post.reactedBy = undefined;
+                if (post.content && post.content.length > 100) {
+                    post.content = post.content.substring(0, 100) + "..."; // Trim and add ellipsis
+                }
+                return post;
+            });
             return new SuccessDTO('Posts retrieved successfully', post);
         } catch (error) {
             throw new NotAcceptableException('Error retrieving posts');
@@ -115,5 +131,134 @@ export class MainService {
             throw error
         }
     }
+
+    async ping(
+        req: requestobjectdto
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let p = await this.UserModel.findOne({ username: req.user })
+            if (!p) throw new NotAcceptableException('Session Invalid');
+            console.log(p);
+            return new SuccessDTO('pong', { userName: p.username, id: p._id });
+        } catch (error) {
+            throw error
+        }
+    }
+
+
+    async getUserProfile(
+        userID: string,
+        type: 'details' | 'posts'
+    ): Promise<SuccessDTO | NotAcceptableException> {
+
+        try {
+
+            if (type === 'details') {
+
+                if (!userID.match(/^[0-9a-fA-F]{24}$/)) {
+                    let user = await this.UserModel.findOne({ username: userID }).select('-pinCode');
+                    if (!user) throw new NotAcceptableException();
+                    let totalPostCount = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).limit(10).countDocuments()
+                    let recentlyActive = user.lastActive;
+                    let userName = user.username;
+                    let joinedDate = user.joinedDate
+                    let post = {
+                        totalPostCount,
+                        recentlyActive,
+                        userName,
+                        joinedDate
+                    }
+                    return new SuccessDTO('User profile retrieved successfully', post);
+                }
+
+                let user = await this.UserModel.findOne({ _id: userID }).select('-pinCode');
+                if (!user) throw new NotAcceptableException();
+                let totalPostCount = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).limit(10).countDocuments()
+                let recentlyActive = user.lastActive;
+                let userName = user.username;
+                let joinedDate = user.joinedDate
+                let post = {
+                    totalPostCount,
+                    recentlyActive,
+                    userName,
+                    joinedDate
+                }
+                return new SuccessDTO('User profile retrieved successfully', post);
+            }
+
+            if (type === 'posts') {
+                if (!userID.match(/^[0-9a-fA-F]{24}$/)) {
+                    let user = await this.UserModel.findOne({ username: userID }).select('-pinCode');
+                    if (!user) throw new NotAcceptableException();
+                    let totalPosts = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).select('-comments -reactions -content -reactedBy')
+                    return new SuccessDTO('User profile posts retrieved successfully', totalPosts);
+                }
+
+                let user = await this.UserModel.findOne({ _id: userID }).select('-pinCode');
+                if (!user) throw new NotAcceptableException();
+                let totalPosts = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).select('-comments -reactions -content -reactedBy')
+                return new SuccessDTO('User profile posts retrieved successfully', totalPosts);
+            }
+
+            return new SuccessDTO('Invalid type provided');
+
+        } catch (error) {
+            throw new NotAcceptableException('Error retrieving user profile');
+        }
+    }
+
+
+    async changeDp(
+        req: requestobjectdto,
+        file: Express.Multer.File
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let a = await this.UserModel.findOne({ username: req.user })
+            if (!a) throw new NotAcceptableException('User not found');
+            if (file.mimetype !== 'image/png' && file.mimetype !== 'image/jpeg') throw new NotAcceptableException('Invalid file type png and jpg only');
+            let randomFileName = a.username;
+            if (file.size > 2000000) throw new NotAcceptableException('File size too large. Max file size is 2mb');
+            let fileExtension = file.mimetype.split('/')[1];
+            let fileName = randomFileName + '.' + fileExtension;
+            if (!fs.existsSync('uploads/dp')) {
+                fs.mkdirSync('uploads/dp', { recursive: true });
+            }
+            const profilePicturesFolder = 'uploads/dp/';
+
+            fs.readdir(profilePicturesFolder, async (err, files) => {
+                if (err) {
+                    return new NotAcceptableException('Error reading directory');
+                }
+                const filex = files.filter(filename => filename.startsWith(`${randomFileName}.`));
+                console.log(filex);
+                if (filex.length > 0) {
+                    filex.map(async (f) => {
+                        fs.unlinkSync(profilePicturesFolder + f)
+                        let filePath = 'uploads/dp/' + fileName;
+
+                        fs.writeFileSync(filePath, file.buffer);
+                        a.profileImageUrl = fileName;
+                        await a.save();
+                    })
+
+                }
+                else {
+                    let filePath = 'uploads/dp/' + fileName;
+                    fs.writeFileSync(filePath, file.buffer);
+                    a.profileImageUrl = fileName;
+                    await a.save();
+                }
+            })
+
+
+            return new SuccessDTO('Profile picture changed successfully', { profileImageUrl: fileName });
+        } catch (error) {
+            console.log(error)
+            throw error
+        }
+    }
+
+
+
 
 }

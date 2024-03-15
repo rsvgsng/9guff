@@ -13,6 +13,7 @@ export interface PostSchemaDTO {
         reaction?: string;
     }[];
     audioLength?: string;
+    userDP: string;
     audioUrl?: string;
     postID?: string;
     reactions?: {
@@ -28,8 +29,7 @@ export interface PostSchemaDTO {
     comments?: {
         user?: string;
         comment?: string;
-        commentID?: string;
-
+        _id?: string;
         replies?: {
             user?: string;
             comment?: string;
@@ -47,6 +47,7 @@ export interface PostSchema extends mongoose.Document {
     category?: string;
     photoUrl?: string;
     audioLength?: string;
+    userDP: string;
     audioUrl?: string;
     reactions?: {
         crazy?: number;
@@ -65,7 +66,7 @@ export interface PostSchema extends mongoose.Document {
     comments?: {
         user?: string;
         comment?: string;
-        commentID?: string;
+        _id?: string;
         replies?: {
             user?: string;
             comment?: string;
@@ -80,12 +81,13 @@ export const Posts = new mongoose.Schema<PostSchema>({
     audioLength: { type: String, default: null },
     audioUrl: { type: String, default: null },
     category: { type: String, required: true },
+    userDP: { type: String, required: false },
     reactedBy: [{
         user: { type: String, required: true },
         reaction: { type: String, required: true }
     }],
     reactionCount: { type: Number, default: 0 },
-    postID: { type: String, required: true, unique: true },
+    postID: { type: String, required: true },
     content: {
         type: String,
         required: true
@@ -103,13 +105,13 @@ export const Posts = new mongoose.Schema<PostSchema>({
     },
     views: { type: Number, default: 0 },
     comments: [{
-        user: { type: String, required: true },
-        comment: { type: String, required: true },
+        user: { type: String, required: false },
+        comment: { type: String, required: false },
         createdAt: { type: Date, default: Date.now },
-        commentID: { type: String, required: false, unique: true },
+
         replies: [{
-            user: { type: String, required: true },
-            comment: { type: String, required: true },
+            user: { type: String, required: false },
+            comment: { type: String, required: false },
             createdAt: { type: Date, default: Date.now }
         }]
     }]
