@@ -5,6 +5,7 @@ import { UserSchema } from "src/Models/users.model";
 import { UserDto } from "src/dto/users.dto";
 import { SuccessDTO } from "src/dto/response.dto";
 import * as jwt from 'jsonwebtoken'
+import { forbiddenUsernames } from "src/utils/generaterandomid.util";
 const { verify } = require('hcaptcha');
 
 @Injectable()
@@ -45,8 +46,7 @@ export class authService {
             if (pincode.length !== 4) throw new ForbiddenException('Pincode must be 4 digits')
             if (username.length < 3) throw new ForbiddenException('Username must be at least 3 characters')
             if (username.length > 10) throw new ForbiddenException('Username must be less than 10 characters')
-            if (username === 'admin') throw new ForbiddenException('Username not allowed')
-            if (username === 'default') throw new ForbiddenException('Username not allowed')
+            if (forbiddenUsernames.includes(username.toLowerCase())) throw new ForbiddenException('Username is forbidden')
             if (!/^[a-zA-Z0-9_]*$/.test(username)) throw new ForbiddenException('Username must contain only letters, numbers and underscores')
             let isValid = await verify(secret, htoken)
             if (isValid.success === false) throw new ForbiddenException('Invalid token')
@@ -69,7 +69,6 @@ export class authService {
             await newUser.save()
             return new SuccessDTO('User created successfully')
         } catch (error) {
-            console.log(error)
             throw new ForbiddenException(error.message)
         }
     }

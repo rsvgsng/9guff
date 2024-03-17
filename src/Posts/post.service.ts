@@ -136,19 +136,19 @@ export class postService {
                 fs.writeFileSync(filePath, file.buffer);
                 post.photoUrl = fileName;
                 const newPost = new this.PostModel(post);
-                //     fetch('https://ntfy.sh/confess24channel', {
-                //         method: 'POST',
-                //         headers: {
-                //             'Content-Type': 'application/json',
-                //         },
-                //         body: `
-                //         New post by ${req.user},
-                //         Title: ${post.title ? post.title : 'No title'},
-                //         Content: ${post.content},
-                //         Image: https://confessapi.unicomate.com/api/storage/${fileName},
-                //         Created at: ${new Date().toLocaleString()},                    
-                //    `
-                //     })
+                fetch('https://ntfy.sh/confess24channel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: `
+                        New post by ${req.user},
+                        Title: ${post.title ? post.title : 'No title'},
+                        Content: ${post.content},
+                        Image: https://confessapi.unicomate.com/api/storage/${fileName},
+                        Created at: ${new Date().toLocaleString()},                    
+                   `
+                })
                 await newPost.save();
                 return new SuccessDTO("Post created successfully.");
             }
@@ -524,10 +524,12 @@ export class postService {
 
     async deletePostAdmin(
         id: string,
-        action: 'delete' | 'hide'
+        action: 'delete' | 'hide' | 'isnsfw'
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
-            if (action !== 'delete' && action !== 'hide') throw new NotAcceptableException("Invalid action.")
+            if (action !== 'delete' && action !== 'hide'
+                && action !== 'isnsfw'
+            ) throw new NotAcceptableException("Invalid action.")
             if (action === 'delete') {
                 let post = await this.PostModel.findOne({ postID: id })
                 if (!post) throw new NotAcceptableException("Post not found.")
@@ -541,6 +543,13 @@ export class postService {
                 post.isVisible = !post.isVisible;
                 await post.save();
                 return new SuccessDTO(`Post ${post.isVisible ? 'restored' : 'hidden'} successfully.`);
+            }
+            if (action === 'isnsfw') {
+                let post = await this.PostModel.findOne({ postID: id })
+                if (!post) throw new NotAcceptableException("Post not found.")
+                post.isNSFW = !post.isNSFW;
+                await post.save();
+                return new SuccessDTO(`Post ${post.isNSFW ? 'marked as NSFW' : 'unmarked as NSFW'} successfully.`);
             }
         } catch (error) {
             throw error

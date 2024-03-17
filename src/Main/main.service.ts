@@ -138,7 +138,6 @@ export class MainService {
         try {
             let p = await this.UserModel.findOne({ username: req.user })
             if (!p) throw new NotAcceptableException('Session Invalid');
-            console.log(p)
             return new SuccessDTO('pong', {
                 userName: p.username, id: p._id, userType: p.isSuperAdmin ? 'Admin' : 'User', userCoolDown: p.coolDown > new Date() ?
                     p.coolDown.getTime() - new Date().getTime()
