@@ -6,18 +6,24 @@ export interface UserSchemaDTO {
     pincode: string;
     joinedDate?: Date;
     lastActive?: Date;
+    isSuperAdmin: boolean;
+    isUserActive?: boolean;
     _id: string;
     profileImageUrl?: string;
+    coolDown?: Date;
 }
 
 
 export interface UserSchema extends mongoose.Document {
     username: string;
     pincode: string;
+    isSuperAdmin: boolean;
     profileImageUrl?: string;
     _id: string;
+    isUserActive?: boolean;
     joinedDate?: Date;
     lastActive?: Date;
+    coolDown?: Date;
 }
 
 export const Users = new mongoose.Schema<UserSchema>({
@@ -25,6 +31,9 @@ export const Users = new mongoose.Schema<UserSchema>({
     pincode: { type: String, required: true },
     joinedDate: { type: Date, default: Date.now },
     lastActive: { type: Date, default: Date.now },
+    isSuperAdmin: { type: Boolean, default: false },
+    coolDown: { type: Date, default: null },
+    isUserActive: { type: Boolean, default: true },
     profileImageUrl: { type: String, default: 'default.png' }
 });
 

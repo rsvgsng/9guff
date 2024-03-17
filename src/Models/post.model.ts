@@ -14,6 +14,7 @@ export interface PostSchemaDTO {
     }[];
     audioLength?: string;
     userDP: string;
+    isVisible?: boolean;
     audioUrl?: string;
     postID?: string;
     reactions?: {
@@ -26,6 +27,7 @@ export interface PostSchemaDTO {
     };
     views?: number;
     reactionCount?: number;
+    isNSFW: boolean;
     comments?: {
         user?: string;
         comment?: string;
@@ -39,6 +41,7 @@ export interface PostSchemaDTO {
     }[];
 }
 export interface PostSchema extends mongoose.Document {
+    isVisible?: boolean;
     title?: string;
     content?: string;
     postID?: string;
@@ -63,6 +66,7 @@ export interface PostSchema extends mongoose.Document {
         reaction?: string;
     }[];
     reactionCount?: number;
+    isNSFW?: boolean;
     comments?: {
         user?: string;
         comment?: string;
@@ -86,8 +90,10 @@ export const Posts = new mongoose.Schema<PostSchema>({
         user: { type: String, required: true },
         reaction: { type: String, required: true }
     }],
+    isNSFW: { type: Boolean, default: false },
     reactionCount: { type: Number, default: 0 },
     postID: { type: String, required: true },
+    isVisible: { type: Boolean, default: true },
     content: {
         type: String,
         required: true

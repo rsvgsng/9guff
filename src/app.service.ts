@@ -19,6 +19,7 @@ export class AppService {
       }
       res.sendFile(imagePath);
     } catch (error) {
+      console.log(error)
       throw new NotFoundException('Image not found');
     }
   }
@@ -27,26 +28,31 @@ export class AppService {
     id: string,
     res: Response
   ) {
-    const profilePicturesFolder = path?.join(__dirname, '..', 'Uploads/dp/');
-    let username = id;
+    try {
+      const profilePicturesFolder = path?.join(__dirname, '..', 'Uploads/dp/');
+      let username = id;
 
-    fs.readdir(profilePicturesFolder, (err, files) => {
-      if (err) {
-        return res.status(500).send('Error reading directory');
-      }
-      const file = files.find(filename => filename.startsWith(`${username}.`));
-      if (!file) {
-        return res.sendFile(path.join(profilePicturesFolder, 'default.png'));
-      }
-      const filePath = path.join(profilePicturesFolder, file);
-      fs.readFile(filePath, (err, data) => {
+      fs.readdir(profilePicturesFolder, (err, files) => {
         if (err) {
-          return res.status(500).send('Error reading file');
+          return res.status(500).send('Error reading directory');
         }
-        const extension = path.extname(filePath).substring(1); // Get extension without the dot
-        res.set('Content-Type', `image/${extension}`);
-        res.send(data);
+        const file = files.find(filename => filename.startsWith(`${username}.`));
+        if (!file) {
+          return res.sendFile(path.join(profilePicturesFolder, 'default.png'));
+        }
+        const filePath = path.join(profilePicturesFolder, file);
+        fs.readFile(filePath, (err, data) => {
+          if (err) {
+            return res.status(500).send('Error reading file');
+          }
+          const extension = path.extname(filePath).substring(1); // Get extension without the dot
+          res.set('Content-Type', `image/${extension}`);
+          res.send(data);
+        });
       });
-    });
+    } catch (error) {
+      console.log(error)
+    }
+
   }
 }

@@ -11,7 +11,6 @@ import { MainModule } from './Main/main.module';
     AuthModule,
     postModule,
     MainModule,
-    AppModule
   ],
   controllers: [AppController],
   providers: [AppService],

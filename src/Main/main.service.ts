@@ -138,8 +138,12 @@ export class MainService {
         try {
             let p = await this.UserModel.findOne({ username: req.user })
             if (!p) throw new NotAcceptableException('Session Invalid');
-            console.log(p);
-            return new SuccessDTO('pong', { userName: p.username, id: p._id });
+            console.log(p)
+            return new SuccessDTO('pong', {
+                userName: p.username, id: p._id, userType: p.isSuperAdmin ? 'Admin' : 'User', userCoolDown: p.coolDown > new Date() ?
+                    p.coolDown.getTime() - new Date().getTime()
+                    : false, userBan: !p.isUserActive
+            });
         } catch (error) {
             throw error
         }
@@ -162,8 +166,12 @@ export class MainService {
                     let recentlyActive = user.lastActive;
                     let userName = user.username;
                     let joinedDate = user.joinedDate
+                    let isUserCoolDown = user.coolDown > new Date() ? user.coolDown.getTime() - new Date().getTime() : false;
+                    let isUserBanned = !user.isUserActive;
                     let post = {
                         totalPostCount,
+                        isUserCoolDown,
+                        isUserBanned,
                         recentlyActive,
                         userName,
                         joinedDate
@@ -176,11 +184,16 @@ export class MainService {
                 let totalPostCount = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).limit(10).countDocuments()
                 let recentlyActive = user.lastActive;
                 let userName = user.username;
+                let isUserBanned = !user.isUserActive;
+
                 let joinedDate = user.joinedDate
+                let isUserCoolDown = user.coolDown > new Date() ? user.coolDown.getTime() - new Date().getTime() : false;
                 let post = {
                     totalPostCount,
+                    isUserBanned,
                     recentlyActive,
                     userName,
+                    isUserCoolDown,
                     joinedDate
                 }
                 return new SuccessDTO('User profile retrieved successfully', post);
@@ -190,13 +203,29 @@ export class MainService {
                 if (!userID.match(/^[0-9a-fA-F]{24}$/)) {
                     let user = await this.UserModel.findOne({ username: userID }).select('-pinCode');
                     if (!user) throw new NotAcceptableException();
-                    let totalPosts = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).select('-comments -reactions -content -reactedBy')
+                    let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true }).sort({ createdAt: -1 }).select('-comments -reactions  -reactedBy')
+                    totalPosts = totalPosts.map(post => {
+                        post.reactionCount = post.reactedBy?.length;
+                        post.reactedBy = undefined;
+                        if (post.content && post.content.length > 100) {
+                            post.content = post.content.substring(0, 100) + "..."; // Trim and add ellipsis
+                        }
+                        return post;
+                    });
                     return new SuccessDTO('User profile posts retrieved successfully', totalPosts);
                 }
 
                 let user = await this.UserModel.findOne({ _id: userID }).select('-pinCode');
                 if (!user) throw new NotAcceptableException();
-                let totalPosts = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).select('-comments -reactions -content -reactedBy')
+                let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true }).sort({ createdAt: -1 }).select('-comments -reactions  -reactedBy')
+                totalPosts = totalPosts.map(post => {
+                    post.reactionCount = post.reactedBy?.length;
+                    post.reactedBy = undefined;
+                    if (post.content && post.content.length > 100) {
+                        post.content = post.content.substring(0, 100) + "..."; // Trim and add ellipsis
+                    }
+                    return post;
+                });
                 return new SuccessDTO('User profile posts retrieved successfully', totalPosts);
             }
 
@@ -220,8 +249,8 @@ export class MainService {
             if (file.size > 2000000) throw new NotAcceptableException('File size too large. Max file size is 2mb');
             let fileExtension = file.mimetype.split('/')[1];
             let fileName = randomFileName + '.' + fileExtension;
-            if (!fs.existsSync('uploads/dp')) {
-                fs.mkdirSync('uploads/dp', { recursive: true });
+            if (!fs.existsSync('Uploads/dp')) {
+                fs.mkdirSync('Uploads/dp', { recursive: true });
             }
             const profilePicturesFolder = 'uploads/dp/';
 
@@ -230,11 +259,10 @@ export class MainService {
                     return new NotAcceptableException('Error reading directory');
                 }
                 const filex = files.filter(filename => filename.startsWith(`${randomFileName}.`));
-                console.log(filex);
                 if (filex.length > 0) {
                     filex.map(async (f) => {
                         fs.unlinkSync(profilePicturesFolder + f)
-                        let filePath = 'uploads/dp/' + fileName;
+                        let filePath = 'Uploads/dp/' + fileName;
 
                         fs.writeFileSync(filePath, file.buffer);
                         a.profileImageUrl = fileName;
@@ -243,7 +271,7 @@ export class MainService {
 
                 }
                 else {
-                    let filePath = 'uploads/dp/' + fileName;
+                    let filePath = 'Uploads/dp/' + fileName;
                     fs.writeFileSync(filePath, file.buffer);
                     a.profileImageUrl = fileName;
                     await a.save();

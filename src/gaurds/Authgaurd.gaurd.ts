@@ -34,3 +34,40 @@ export class AuthGuard implements CanActivate {
 
     }
 }
+
+
+@Injectable()
+export class SuperAuthGarud implements CanActivate {
+    constructor(
+        @InjectModel('Users') private ClientModel: Model<UserSchemaDTO>
+    ) { }
+    async canActivate(
+        context: ExecutionContext,
+    ): Promise<boolean> {
+
+        const request = context.switchToHttp().getRequest();
+        const headers = request.headers;
+        const token = headers?.authorization?.split(' ')[1];
+        if (!token) return false
+        try {
+            let isVerified = jwt.verify(token, "niggaballs69")
+            let userName = isVerified['username']
+            if (isVerified) {
+                let user = await this.ClientModel.findOne({ username: userName })
+                if (!user.isSuperAdmin) return false
+                user.lastActive = new Date()
+                user.save()
+                request.user = (user['username']);
+                request.superAdmin = true
+                return true
+            }
+        } catch (error) {
+            return false
+        }
+
+    }
+}
+
+
+
+

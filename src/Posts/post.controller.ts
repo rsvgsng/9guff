@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { postService } from "./post.service";
 import { PostSchemaDTO } from "src/Models/post.model";
-import { AuthGuard } from "src/gaurds/Authgaurd.gaurd";
+import { AuthGuard, SuperAuthGarud } from "src/gaurds/Authgaurd.gaurd";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { requestobjectdto } from "src/dto/requestobject.dto";
 import { commentDTO } from "src/dto/comment.dto";
@@ -74,6 +74,48 @@ export class PostController {
         @Query("limit") limit: number
     ) {
         return this.postService.getFeed(page, limit)
+    }
+
+
+    // SuperAdmin Routes
+
+
+    @UseGuards(SuperAuthGarud)
+    @Get("allPosts")
+    async allPosts(
+        @Query("page") page: number,
+        @Query("limit") limit: number
+    ) {
+        return this.postService.getAllPostsAdmin(page, limit)
+    }
+
+    @UseGuards(SuperAuthGarud)
+    @Get("allUsers")
+    async allUsers(
+        @Query("page") page: number,
+        @Query("limit") limit: number
+    ) {
+        return this.postService.getAllUsersAdmin(page, limit)
+
+    }
+
+    @UseGuards(SuperAuthGarud)
+    @Delete("deletePost/:id")
+    async deletePost(
+        @Param("id") id: string,
+        @Query("action") query: 'delete' | 'hide'
+    ) {
+        return this.postService.deletePostAdmin(id, query);
+    }
+
+
+    @UseGuards(SuperAuthGarud)
+    @Put('coolDown/:id')
+    async giveCoolDown(
+        @Param("id") id: string,
+        @Query("action") query: 'ban' | 'cooldown'
+    ) {
+        return this.postService.giveCoolDown(id, query);
     }
 
 }
