@@ -66,5 +66,16 @@ export class MainController {
         return this.mainService.changeDp(req, file);
     }
 
+    @UseGuards(AuthGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    @Put("changeCover")
+    async changeCover(
+        @Req() req: requestobjectdto,
+        @UploadedFile() file: Express.Multer.File
+    ) {
+        return this.mainService.changeCover(req, file);
+    }
+
+
 
 }

@@ -1,3 +1,4 @@
+
 export function generateRandomId(length: number) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let randomId = '';
@@ -8,7 +9,6 @@ export function generateRandomId(length: number) {
     }
     return randomId;
 }
-
 
 export const badWords = [
     'muji',
@@ -81,3 +81,4 @@ export const forbiddenUsernames =
         'puti',
         'geda',
     ]
+

@@ -8,10 +8,9 @@ import { badWords, generateRandomId } from "src/utils/generaterandomid.util";
 import * as fs from 'fs'
 import { commentDTO } from "src/dto/comment.dto";
 import { File, FormData } from "formdata-node"
-
 import { NotificationsSchema } from "src/Models/notifications.model";
 import { UserSchema } from "src/Models/users.model";
-
+require('isomorphic-fetch');
 
 
 @Injectable()
@@ -27,7 +26,7 @@ export class postService {
 
 
 
-    async newPost(post: PostSchemaDTO, file: Express.Multer.File, posttype: 'text' | 'audio' | 'image', req: requestobjectdto): Promise<SuccessDTO | NotAcceptableException> {
+    async newPost(post: PostSchemaDTO, file: Express.Multer.File, posttype: 'text' | 'audio' | 'image', req: requestobjectdto): Promise<SuccessDTO | any | NotAcceptableException> {
         try {
 
             let userCheck = await this.UserModel.findOne({ username: req.user })
@@ -100,29 +99,36 @@ export class postService {
                 post.title = post.title ? post.title : null;
                 post.content = post.content ? post.content : null;
                 post.postID = generateRandomId(20);
-                // let fileImage = file.buffer
-                // let form = new FormData()
-                // const filex = new File([fileImage], file.originalname, { type: file.mimetype })
-                // form.append('image', filex)
-                // try {
-                //     let a = await fetch('http://localhost:8080/nsfw', {
-                //         method: 'POST',
-                //         body: form
-                //     })
-                //     let b = await a.json()
-                //     if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
-                //     if (b[0]?.className === 'Porn' && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai') {
-                //         await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 1800000) })
-                //         throw new NotAcceptableException("Congratulations you have received 30 mins cool down! .The image you were trying to upload was against our community guidelines.")
-                //     }
-                //     if (b[0]?.className === 'Drawing' && b[1]?.className === 'Hentai' || b[1]?.className === 'Sexy') {
-                //         await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 1800000) })
-                //         throw new NotAcceptableException("Congratulations you have received 30 mins cool down! .The image you were trying to upload was against our community guidelines")
-                //     }
+                let fileImage = file.buffer
+                let form = new FormData()
+                const filex = new File([fileImage], file.originalname, { type: file.mimetype })
+                form.append('image', filex)
+                try {
+                    let a = await fetch('http://localhost:8082/nsfw', {
+                        method: 'POST',
+                        body: form
+                    })
+                    let b = await a.json()
+                    if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
 
-                // } catch (error) {
-                //     throw error
-                // }
+                    if (b[0]?.className === 'Porn' && (b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai')) {
+                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                    }
+                    if ((b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && (b[2]?.className === 'Porn' || b[2]?.className === 'Hentai')) {
+                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                    }
+                    if ((b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai' || b[1]?.className === 'Porn') {
+                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                    }
+                    if ((b[0]?.className === 'Neutral') && (b[1]?.className === 'Hentai' || b[1]?.className === 'Sexy')) {
+                        post.isNSFW = true
+                    }
+                } catch (error) {
+                    throw error
+                }
                 if (!fs.existsSync('Uploads')) {
                     fs.mkdirSync('Uploads');
                 }
@@ -486,6 +492,27 @@ export class postService {
     }
 
 
+    async changeBio(
+        req: requestobjectdto,
+        bio: string
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let user = await this.UserModel.findOne({ username: req.user })
+            if (!user) throw new NotAcceptableException("User not found.")
+            if (bio?.length > 50) throw new NotAcceptableException("Bio must be less than 50 characters long.")
+            if (bio?.length < 1) {
+                user.bio = null;
+                await user.save();
+                return new SuccessDTO('Bio removed successfully.');
+            }
+            user.bio = bio;
+            await user.save();
+            return new SuccessDTO('Bio updated successfully.');
+
+        } catch (error) {
+            throw error
+        }
+    }
 
     async getAllPostsAdmin(
         page: number,

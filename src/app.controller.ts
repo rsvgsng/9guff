@@ -25,4 +25,12 @@ export class AppController {
   ) {
     return this.appService.fetchDPImage(id, res);
   }
+
+  @Get("/storage/cp/:id")
+  fetchCoverImage(
+    @Param("id") id: string,
+    @Res() res: Response
+  ) {
+    return this.appService.fetchCoverImage(id, res);
+  }
 }

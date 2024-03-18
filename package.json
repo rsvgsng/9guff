@@ -28,6 +28,7 @@
     "bcrypt": "^5.1.1",
     "formdata-node": "^6.0.3",
     "hcaptcha": "^0.1.1",
+    "isomorphic-fetch": "^3.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.2.0",
     "reflect-metadata": "^0.1.13",

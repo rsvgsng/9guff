@@ -24,6 +24,10 @@ export class AppService {
     }
   }
 
+
+
+
+
   fetchDPImage(
     id: string,
     res: Response
@@ -54,5 +58,22 @@ export class AppService {
       console.log(error)
     }
 
+  }
+
+
+  fetchCoverImage(
+    id: string,
+    res: Response
+  ) {
+    const imagePath = path?.join(__dirname, '..', 'Uploads/cp/', id);
+    try {
+      if (!fs.existsSync(imagePath)) {
+        throw new NotFoundException('Image not found');
+      }
+      res.sendFile(imagePath);
+    } catch (error) {
+      console.log(error)
+      throw new NotFoundException('Image not found');
+    }
   }
 }

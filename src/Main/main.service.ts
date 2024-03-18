@@ -9,6 +9,7 @@ import { SuccessDTO } from "src/dto/response.dto";
 import { generateRandomId } from "src/utils/generaterandomid.util";
 import * as fs from 'fs'
 import path from "path";
+import { File, FormData } from "formdata-node"
 
 @Injectable()
 export class MainService {
@@ -167,9 +168,13 @@ export class MainService {
                     let joinedDate = user.joinedDate
                     let isUserCoolDown = user.coolDown > new Date() ? user.coolDown.getTime() - new Date().getTime() : false;
                     let isUserBanned = !user.isUserActive;
+                    let coverPic = user.coverImage;
+                    let bio = user.bio
                     let post = {
                         totalPostCount,
+                        bio,
                         isUserCoolDown,
+                        coverPic,
                         isUserBanned,
                         recentlyActive,
                         userName,
@@ -184,14 +189,17 @@ export class MainService {
                 let recentlyActive = user.lastActive;
                 let userName = user.username;
                 let isUserBanned = !user.isUserActive;
-
+                let bio = user.bio
+                let coverPic = user.coverImage;
                 let joinedDate = user.joinedDate
                 let isUserCoolDown = user.coolDown > new Date() ? user.coolDown.getTime() - new Date().getTime() : false;
                 let post = {
                     totalPostCount,
                     isUserBanned,
                     recentlyActive,
+                    bio,
                     userName,
+                    coverPic,
                     isUserCoolDown,
                     joinedDate
                 }
@@ -242,17 +250,40 @@ export class MainService {
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
             let a = await this.UserModel.findOne({ username: req.user })
+            if (a.coolDown > new Date()) throw new NotAcceptableException('You cannot change your profile picture at the moment. You have a cool down period. Please try again later.')
             if (!a) throw new NotAcceptableException('User not found');
             if (file.mimetype !== 'image/png' && file.mimetype !== 'image/jpeg') throw new NotAcceptableException('Invalid file type png and jpg only');
             let randomFileName = a.username;
             if (file.size > 2000000) throw new NotAcceptableException('File size too large. Max file size is 2mb');
+            let fileImage = file.buffer
+            let form = new FormData()
+            const filex = new File([fileImage], file.originalname, { type: file.mimetype })
+            form.append('image', filex)
+            try {
+                let a = await fetch('http://localhost:8082/nsfw', {
+                    method: 'POST',
+                    body: form
+                })
+                let b = await a.json()
+                console.log(b)
+                if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
+                if (b[0]?.className === 'Porn' && (b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai')) {
+                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                }
+                if ((b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai' || b[1]?.className === 'Porn') {
+                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                }
+            } catch (error) {
+                throw error
+            }
             let fileExtension = file.mimetype.split('/')[1];
             let fileName = randomFileName + '.' + fileExtension;
             if (!fs.existsSync('Uploads/dp')) {
                 fs.mkdirSync('Uploads/dp', { recursive: true });
             }
-            const profilePicturesFolder = 'uploads/dp/';
-
+            const profilePicturesFolder = 'Uploads/dp/';
             fs.readdir(profilePicturesFolder, async (err, files) => {
                 if (err) {
                     return new NotAcceptableException('Error reading directory');
@@ -287,5 +318,64 @@ export class MainService {
 
 
 
+
+
+
+
+
+
+
+    async changeCover(
+        req: requestobjectdto,
+        file: Express.Multer.File
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let a = await this.UserModel.findOne({ username: req.user })
+            if (a.coolDown > new Date()) throw new NotAcceptableException('You cannot change your profile picture at the moment. You have a cool down period. Please try again later.')
+            if (!a) throw new NotAcceptableException('User not found');
+            if (file.mimetype !== 'image/png' && file.mimetype !== 'image/jpeg') throw new NotAcceptableException('Invalid file type png and jpg only');
+            let randomFileName = generateRandomId(18);
+            if (file.size > 2000000) throw new NotAcceptableException('File size too large. Max file size is 2mb');
+            let fileImage = file.buffer
+            let form = new FormData()
+            const filex = new File([fileImage], file.originalname, { type: file.mimetype })
+            form.append('image', filex)
+            try {
+                let a = await fetch('http://localhost:8082/nsfw', {
+                    method: 'POST',
+                    body: form
+                })
+                let b = await a.json()
+                console.log(b)
+                if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
+                if (b[0]?.className === 'Porn' && (b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai')) {
+                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                }
+                if ((b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai' || b[1]?.className === 'Porn') {
+                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
+                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                }
+            } catch (error) {
+                throw error
+            }
+            let fileExtension = file.mimetype.split('/')[1];
+            let fileName = randomFileName + '.' + fileExtension;
+            if (!fs.existsSync('Uploads/cp')) {
+                fs.mkdirSync('Uploads/cp', { recursive: true });
+            }
+            if (a.coverImage) {
+                fs.unlinkSync('Uploads/cp/' + a.coverImage);
+            }
+            let filePath = 'Uploads/cp/' + fileName;
+            fs.writeFileSync(filePath, file.buffer);
+            a.coverImage = fileName;
+            await a.save();
+            return new SuccessDTO('Cover image updated Successfully');
+        } catch (error) {
+            console.log(error)
+            throw error
+        }
+    }
 
 }

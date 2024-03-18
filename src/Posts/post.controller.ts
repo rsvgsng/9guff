@@ -76,6 +76,16 @@ export class PostController {
         return this.postService.getFeed(page, limit)
     }
 
+    @UseGuards(AuthGuard)
+    @Put("changeBio")
+    async changeBio(
+        @Req() req: requestobjectdto,
+        @Body("bio") bio: string
+    ) {
+        return this.postService.changeBio(req, bio);
+
+    }
+
 
     // SuperAdmin Routes
 
