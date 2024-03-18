@@ -30,15 +30,10 @@ export class postService {
     async newPost(post: PostSchemaDTO, file: Express.Multer.File, posttype: 'text' | 'audio' | 'image', req: requestobjectdto): Promise<SuccessDTO | NotAcceptableException> {
         try {
 
-            let coolDownCheck = await this.UserModel.findOne({ username: req.user }).select('coolDown')
-            let userActiveCheck = await this.UserModel.findOne({ username: req.user }).select('isUserActive')
-
-            if (coolDownCheck.coolDown > new Date()) {
-                throw new NotAcceptableException("You are on a cool down. Please try again later after " + coolDownCheck.coolDown.toLocaleTimeString() + ".")
-            }
-            if (!userActiveCheck.isUserActive) {
-                throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
-            }
+            let userCheck = await this.UserModel.findOne({ username: req.user })
+            if (!userCheck.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            if (userCheck.postCoolDown > new Date()) throw new NotAcceptableException("You have recently created a post please wait upto " + userCheck.postCoolDown.toLocaleTimeString() + ".")
+            if (userCheck.coolDown > new Date()) throw new NotAcceptableException("You are on a cool down. Please try again later after " + userCheck.coolDown.toLocaleTimeString() + ".")
 
             let cats = ['a_feeling', 'a_confusion', 'a_problem', 'a_pain', 'an_experience', 'a_habit', 'others']
 
@@ -71,6 +66,8 @@ export class postService {
                 post.postID = generateRandomId(20);
                 post.content = post.content ? post.content : null;
                 const newPost = new this.PostModel(post);
+                userCheck.postCoolDown = new Date(Date.now() + 180000)
+                await userCheck.save()
                 await newPost.save();
                 fetch('https://ntfy.sh/confess24channel', {
                     method: 'POST',
@@ -103,29 +100,29 @@ export class postService {
                 post.title = post.title ? post.title : null;
                 post.content = post.content ? post.content : null;
                 post.postID = generateRandomId(20);
-                let fileImage = file.buffer
-                let form = new FormData()
-                const filex = new File([fileImage], file.originalname, { type: file.mimetype })
-                form.append('image', filex)
-                try {
-                    let a = await fetch('http://localhost:8080/nsfw', {
-                        method: 'POST',
-                        body: form
-                    })
-                    let b = await a.json()
-                    if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
-                    if (b[0]?.className === 'Porn' && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai') {
-                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 1800000) })
-                        throw new NotAcceptableException("Congratulations you have received 30 mins cool down! .The image you were trying to upload was against our community guidelines.")
-                    }
-                    if (b[0]?.className === 'Drawing' && b[1]?.className === 'Hentai' || b[1]?.className === 'Sexy') {
-                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 1800000) })
-                        throw new NotAcceptableException("Congratulations you have received 30 mins cool down! .The image you were trying to upload was against our community guidelines")
-                    }
+                // let fileImage = file.buffer
+                // let form = new FormData()
+                // const filex = new File([fileImage], file.originalname, { type: file.mimetype })
+                // form.append('image', filex)
+                // try {
+                //     let a = await fetch('http://localhost:8080/nsfw', {
+                //         method: 'POST',
+                //         body: form
+                //     })
+                //     let b = await a.json()
+                //     if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
+                //     if (b[0]?.className === 'Porn' && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai') {
+                //         await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 1800000) })
+                //         throw new NotAcceptableException("Congratulations you have received 30 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                //     }
+                //     if (b[0]?.className === 'Drawing' && b[1]?.className === 'Hentai' || b[1]?.className === 'Sexy') {
+                //         await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 1800000) })
+                //         throw new NotAcceptableException("Congratulations you have received 30 mins cool down! .The image you were trying to upload was against our community guidelines")
+                //     }
 
-                } catch (error) {
-                    throw error
-                }
+                // } catch (error) {
+                //     throw error
+                // }
                 if (!fs.existsSync('Uploads')) {
                     fs.mkdirSync('Uploads');
                 }
@@ -149,6 +146,8 @@ export class postService {
                         Created at: ${new Date().toLocaleString()},                    
                    `
                 })
+                userCheck.postCoolDown = new Date(Date.now() + 180000)
+                await userCheck.save()
                 await newPost.save();
                 return new SuccessDTO("Post created successfully.");
             }
@@ -192,6 +191,8 @@ export class postService {
                     Created at: ${new Date().toLocaleString()},                    
                `
                 })
+                userCheck.postCoolDown = new Date(Date.now() + 180000)
+                await userCheck.save()
                 await newPost.save();
                 return new SuccessDTO("Post created successfully.");
             }
@@ -215,8 +216,10 @@ export class postService {
         postID: string
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
-            let isUserBan = await this.UserModel.findOne({ username: req.user }).select('isUserActive')
-            if (!isUserBan.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            let userCheck = await this.UserModel.findOne({ username: req.user })
+            if (!userCheck.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            if (userCheck.coolDown > new Date()) throw new NotAcceptableException("You are on a cool down. Please try again later after " + userCheck.coolDown.toLocaleTimeString() + ".")
+
             if (Object.keys(comment).length === 0) throw new NotAcceptableException("Comment cannot be empty.")
             let post = await this.PostModel.findOne({
                 postID: postID
@@ -265,8 +268,11 @@ export class postService {
         commentID: string
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
-            let isUserBan = await this.UserModel.findOne({ username: req.user }).select('isUserActive')
-            if (!isUserBan.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            let userCheck = await this.UserModel.findOne({ username: req.user })
+            if (!userCheck.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            if (userCheck.coolDown > new Date()) throw new NotAcceptableException("You are on a cool down. Please try again later after " + userCheck.coolDown.toLocaleTimeString() + ".")
+
+
             if (Object.keys(reply).length === 0) throw new NotAcceptableException("Reply cannot be empty.")
             let a = await this.PostModel.findOne({
                 "comments._id": commentID
@@ -359,8 +365,10 @@ export class postService {
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
 
-            let isUserBan = await this.UserModel.findOne({ username: req.user }).select('isUserActive')
-            if (!isUserBan.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            let userCheck = await this.UserModel.findOne({ username: req.user })
+            if (!userCheck.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
+            if (userCheck.coolDown > new Date()) throw new NotAcceptableException("You are on a cool down. Please try again later after " + userCheck.coolDown.toLocaleTimeString() + ".")
+
             let reactionx = ['crazy', 'love', 'haha', 'wow', 'sad', 'angry']
             if (!reactionx.includes(reaction)) throw new NotAcceptableException("Invalid reaction.")
 
@@ -563,6 +571,7 @@ export class postService {
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
             if (action !== 'ban' && action !== 'cooldown') throw new NotAcceptableException("Invalid action.")
+
             if (action == 'cooldown') {
                 let user = await this.UserModel.findOne({ username: id });
                 if (!user) throw new NotAcceptableException("User not found.")
@@ -580,6 +589,20 @@ export class postService {
                 return new SuccessDTO(`User ${id} has been ${user.isUserActive ? 'unbanned' : 'banned'}.`);
             }
 
+        } catch (error) {
+            throw error
+        }
+    }
+
+    async removeCoolDown(
+        id: string
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let user = await this.UserModel.findOne({ username: id });
+            if (!user) throw new NotAcceptableException("User not found.")
+            user.coolDown = new Date(Date.now() - 1000);
+            await user.save();
+            return new SuccessDTO(`User ${id} has been removed from cool down.`);
         } catch (error) {
             throw error
         }

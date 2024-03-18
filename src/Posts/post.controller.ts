@@ -118,4 +118,11 @@ export class PostController {
         return this.postService.giveCoolDown(id, query);
     }
 
+    @UseGuards(SuperAuthGarud)
+    @Put('removeCoolDown/:id')
+    async removeCoolDown(
+        @Param("id") id: string,
+    ) {
+        return this.postService.removeCoolDown(id);
+    }
 }

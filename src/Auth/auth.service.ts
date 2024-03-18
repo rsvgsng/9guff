@@ -50,7 +50,7 @@ export class authService {
             if (!/^[a-zA-Z0-9_]*$/.test(username)) throw new ForbiddenException('Username must contain only letters, numbers and underscores')
             let isValid = await verify(secret, htoken)
             if (isValid.success === false) throw new ForbiddenException('Invalid token')
-            const userExists = await this.ClientModel.findOne({ username })
+            const userExists = await this.ClientModel.findOne({ username: username.toLowerCase() })
             if (userExists) throw new ForbiddenException('Username already exists')
             user.username = username.toLowerCase()
             const newUser = new this.ClientModel(user)

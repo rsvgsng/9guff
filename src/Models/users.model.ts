@@ -11,6 +11,7 @@ export interface UserSchemaDTO {
     _id: string;
     profileImageUrl?: string;
     coolDown?: Date;
+    postCoolDown?: Date;
 }
 
 
@@ -24,17 +25,19 @@ export interface UserSchema extends mongoose.Document {
     joinedDate?: Date;
     lastActive?: Date;
     coolDown?: Date;
+    postCoolDown?: Date;
 }
 
 export const Users = new mongoose.Schema<UserSchema>({
-    username: { type: String, required: true },
+    username: { type: String, required: true, unique: true },
     pincode: { type: String, required: true },
     joinedDate: { type: Date, default: Date.now },
     lastActive: { type: Date, default: Date.now },
     isSuperAdmin: { type: Boolean, default: false },
     coolDown: { type: Date, default: null },
     isUserActive: { type: Boolean, default: true },
-    profileImageUrl: { type: String, default: 'default.png' }
+    profileImageUrl: { type: String, default: 'default.png' },
+    postCoolDown: { type: Date, default: null }
 });
 
 
