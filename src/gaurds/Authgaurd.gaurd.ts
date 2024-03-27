@@ -23,6 +23,9 @@ export class AuthGuard implements CanActivate {
             let userName = isVerified['username']
             if (isVerified) {
                 let user = await this.ClientModel.findOne({ username: userName })
+                if (user.isSuperAdmin) {
+                    request.superAdmin = true
+                }
                 user.lastActive = new Date()
                 user.save()
                 request.user = (user['username']);

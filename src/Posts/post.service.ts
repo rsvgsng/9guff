@@ -33,7 +33,6 @@ export class postService {
             if (!userCheck.isUserActive) throw new NotAcceptableException("Your account is currently disabled. Please contact support.")
             if (userCheck.postCoolDown > new Date()) throw new NotAcceptableException("You have recently created a post please wait upto " + userCheck.postCoolDown.toLocaleTimeString() + ".")
             if (userCheck.coolDown > new Date()) throw new NotAcceptableException("You are on a cool down. Please try again later after " + userCheck.coolDown.toLocaleTimeString() + ".")
-
             let cats = ['a_feeling', 'a_confusion', 'a_problem', 'a_pain', 'an_experience', 'a_habit', 'others']
 
             if (post.category && !cats.includes(post.category))
@@ -50,6 +49,9 @@ export class postService {
 
             if (posttype === 'text' && file)
                 throw new NotAcceptableException("Text post cannot have an attachment.")
+
+
+
             if (posttype === 'text') {
                 if (post.title.length <= 0 && post.content.length <= 0) {
                     throw new NotAcceptableException("Basic fields are required to create a post.");
@@ -63,6 +65,8 @@ export class postService {
                 post.user = req.user;
                 post.title = post.title ? post.title : null;
                 post.postID = generateRandomId(20);
+                post.disableComments = post.disableComments ? post.disableComments : false;
+                post.isAnonymous = post.isAnonymous ? post.isAnonymous : false;
                 post.content = post.content ? post.content : null;
                 const newPost = new this.PostModel(post);
                 userCheck.postCoolDown = new Date(Date.now() + 180000)
@@ -74,7 +78,7 @@ export class postService {
                         'Content-Type': 'application/json',
                     },
                     body: `
-                    New post by ${req.user},
+                    New post TEXT by ${req.user},
                     Title: ${post.title ? post.title : 'No title'},
                     Content: ${post.content},
                     Created at: ${new Date().toLocaleString()},                    
@@ -99,6 +103,7 @@ export class postService {
                 post.title = post.title ? post.title : null;
                 post.content = post.content ? post.content : null;
                 post.postID = generateRandomId(20);
+                post.isAnonymous = post.isAnonymous ? post.isAnonymous : false;
                 let fileImage = file.buffer
                 let form = new FormData()
                 const filex = new File([fileImage], file.originalname, { type: file.mimetype })
@@ -110,21 +115,16 @@ export class postService {
                     })
                     let b = await a.json()
                     if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
-
                     if (b[0]?.className === 'Porn' && (b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai')) {
-                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) });
+                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.");
                     }
-                    if ((b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && (b[2]?.className === 'Porn' || b[2]?.className === 'Hentai')) {
-                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
-                    }
-                    if ((b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai' || b[1]?.className === 'Porn') {
-                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                    if ((b[0]?.className === 'Sexy') && (b[1]?.className === 'Porn' || b[1]?.className === 'Hentai')) {
+                        await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) });
+                        throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.");
                     }
                     if ((b[0]?.className === 'Neutral') && (b[1]?.className === 'Hentai' || b[1]?.className === 'Sexy')) {
-                        post.isNSFW = true
+                        post.isNSFW = true;
                     }
                 } catch (error) {
                     throw error
@@ -321,15 +321,27 @@ export class postService {
                 let post = await this.PostModel.findOne({
                     postID: postID
                 }).select('-reactedBy -__v -comments ')
+                let originaluser;
+
+                if (post.isAnonymous) {
+                    let user = await this.PostModel.findOne({ postID: postID })
+                    originaluser = user.user
+
+                }
 
                 if (!post) throw new NotAcceptableException("Post not found.")
                 let totalReactions = post.reactions.crazy + post.reactions.love + post.reactions.haha + post.reactions.wow + post.reactions.sad + post.reactions.angry;
                 post.reactionCount = totalReactions;
                 post.views = post.views + 1;
                 await post.save();
+
                 post.reactions = undefined;
+                post.user = post.isAnonymous ?
+                    req.superAdmin ?
+                        post.user = `Anonymous (${originaluser})` : post.user = "Anonymous" : post.user
                 return new SuccessDTO('ok', post);
             } catch (error) {
+                console.log(error)
                 throw new NotAcceptableException(error.message);
 
             }
@@ -470,19 +482,27 @@ export class postService {
     ): Promise<SuccessDTO | NotAcceptableException> {
         try {
             const count = await this.PostModel.countDocuments({}).exec();
+
             let posts = await this.PostModel.find({
                 isVisible: true
-            }).select("-reactions  -comments ").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec();
+            }).select("-reactions").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).exec();
 
             posts = posts.map(post => {
+                post.commentCount = post.comments?.length;
+                post.loli = 90
                 post.reactionCount = post.reactedBy?.length;
                 post.reactedBy = undefined;
+                post.user = post.isAnonymous ?
+                    post.user = "Anonymous" : post.user
+                post.comments = undefined;
                 if (post.content && post.content.length > 100) {
                     post.content = post.content.substring(0, 100) + "..."; // Trim and add ellipsis
                 }
                 return post;
             });
-            return new SuccessDTO('ok', {
+
+
+            return new SuccessDTO('okx', {
                 posts: posts,
                 count: count
             });

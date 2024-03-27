@@ -77,5 +77,14 @@ export class MainController {
     }
 
 
+    @UseGuards(AuthGuard)
+    @Get("recentlyActiveUsers")
+    async getRecentlyActiveUsers(
+        @Req() req: requestobjectdto,
+    ) {
+        return this.mainService.getRecentlyActiveUsers(req);
+    }
+
+
 
 }

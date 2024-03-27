@@ -5,7 +5,7 @@ export interface UserSchemaDTO {
     username: string;
     pincode: string;
     joinedDate?: Date;
-    lastActive?: Date;
+    lastActive?: Date | any;
     isSuperAdmin: boolean;
     isUserActive?: boolean;
     bio?: string;

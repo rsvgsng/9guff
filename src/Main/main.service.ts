@@ -3,12 +3,11 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NotificationsSchema } from "src/Models/notifications.model";
 import { PostSchema } from "src/Models/post.model";
-import { UserSchema } from "src/Models/users.model";
+import { UserSchema, UserSchemaDTO } from "src/Models/users.model";
 import { requestobjectdto } from "src/dto/requestobject.dto";
 import { SuccessDTO } from "src/dto/response.dto";
 import { generateRandomId } from "src/utils/generaterandomid.util";
 import * as fs from 'fs'
-import path from "path";
 import { File, FormData } from "formdata-node"
 
 @Injectable()
@@ -20,7 +19,7 @@ export class MainService {
         @InjectModel('Posts')
         private PostModel: Model<PostSchema>,
         @InjectModel('Users')
-        private UserModel: Model<UserSchema>,
+        private UserModel: Model<UserSchemaDTO>,
     ) { }
 
     formatNotification(actionBy?: {
@@ -210,7 +209,7 @@ export class MainService {
                 if (!userID.match(/^[0-9a-fA-F]{24}$/)) {
                     let user = await this.UserModel.findOne({ username: userID }).select('-pinCode');
                     if (!user) throw new NotAcceptableException();
-                    let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true }).sort({ createdAt: -1 }).select('-comments -reactions  -reactedBy')
+                    let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true }).sort({ createdAt: -1 }).select('-comments -reactions ')
                     totalPosts = totalPosts.map(post => {
                         post.reactionCount = post.reactedBy?.length;
                         post.reactedBy = undefined;
@@ -267,14 +266,12 @@ export class MainService {
                 let b = await a.json()
                 console.log(b)
                 if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
-                if (b[0]?.className === 'Porn' && (b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai')) {
-                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+
+                if (b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === "Hentai") {
+                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) });
+                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.");
                 }
-                if ((b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai' || b[1]?.className === 'Porn') {
-                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
-                }
+
             } catch (error) {
                 throw error
             }
@@ -348,14 +345,11 @@ export class MainService {
                 let b = await a.json()
                 console.log(b)
                 if (!b) throw new NotAcceptableException("Error with internal verification. Please try again later.")
-                if (b[0]?.className === 'Porn' && (b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai')) {
-                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
+                if (b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') {
+                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) });
+                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.");
                 }
-                if ((b[0]?.className === 'Porn' || b[0]?.className === 'Sexy' || b[0]?.className === 'Hentai') && b[1]?.className === 'Sexy' || b[1]?.className === 'Hentai' || b[1]?.className === 'Porn') {
-                    await this.UserModel.findOneAndUpdate({ username: req.user }, { coolDown: new Date(Date.now() + 600000) })
-                    throw new NotAcceptableException("Congratulations you have received 10 mins cool down! .The image you were trying to upload was against our community guidelines.")
-                }
+
             } catch (error) {
                 throw error
             }
@@ -365,7 +359,9 @@ export class MainService {
                 fs.mkdirSync('Uploads/cp', { recursive: true });
             }
             if (a.coverImage) {
-                fs.unlinkSync('Uploads/cp/' + a.coverImage);
+                if (a.coverImage === "default.png") { } else {
+                    fs.unlinkSync('Uploads/cp/' + a.coverImage);
+                }
             }
             let filePath = 'Uploads/cp/' + fileName;
             fs.writeFileSync(filePath, file.buffer);
@@ -375,6 +371,28 @@ export class MainService {
         } catch (error) {
             console.log(error)
             throw error
+        }
+    }
+
+
+    async getRecentlyActiveUsers(
+        req: requestobjectdto
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let users = await this.UserModel.find({
+                lastActive: {
+                    $gt:
+                        new Date(new Date().setDate(new Date().getDate() - 30))
+
+                }
+            })
+                .select('lastActive  username')
+                .sort({ lastActive: -1 })
+                .limit(20);
+
+            return new SuccessDTO('Recently active users retrieved successfully', users);
+        } catch (error) {
+            throw new NotAcceptableException('Error retrieving recently active users');
         }
     }
 

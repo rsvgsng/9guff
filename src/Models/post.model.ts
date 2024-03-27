@@ -7,6 +7,8 @@ export interface PostSchemaDTO {
     user?: string;
     createdAt?: Date;
     category?: string;
+    isAnonymous?: boolean;
+    disableComments?: boolean;
     photoUrl?: string;
     reactedBy?: {
         user?: string;
@@ -27,6 +29,7 @@ export interface PostSchemaDTO {
     };
     views?: number;
     reactionCount?: number;
+    commentCount?: number;
     isNSFW: boolean;
     comments?: {
         user?: string;
@@ -46,11 +49,14 @@ export interface PostSchema extends mongoose.Document {
     content?: string;
     postID?: string;
     user?: string;
+    isAnonymous?: boolean;
+    disableComments?: boolean;
     createdAt?: Date;
     category?: string;
     photoUrl?: string;
     audioLength?: string;
     userDP: string;
+    commentCount?: number;
     audioUrl?: string;
     reactions?: {
         crazy?: number;
@@ -65,6 +71,7 @@ export interface PostSchema extends mongoose.Document {
         user?: string;
         reaction?: string;
     }[];
+    loli: any;
     reactionCount?: number;
     isNSFW?: boolean;
     comments?: {
@@ -92,8 +99,10 @@ export const Posts = new mongoose.Schema<PostSchema>({
     }],
     isNSFW: { type: Boolean, default: false },
     reactionCount: { type: Number, default: 0 },
+    commentCount: { type: Number, default: 0 },
     postID: { type: String, required: true },
     isVisible: { type: Boolean, default: true },
+    disableComments: { type: Boolean, default: false },
     content: {
         type: String,
         required: true
@@ -109,6 +118,7 @@ export const Posts = new mongoose.Schema<PostSchema>({
         sad: { type: Number, default: 0 },
         angry: { type: Number, default: 0 }
     },
+    isAnonymous: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
     comments: [{
         user: { type: String, required: false },
