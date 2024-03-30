@@ -62,24 +62,21 @@ export class MainService {
 
     async getNotifications(req: requestobjectdto): Promise<SuccessDTO | NotAcceptableException> {
         try {
-            let noti = await this.NotificationModel.find({ owner: req.user }).sort({ createdAt: -1 }).limit(10);
-
-            let x = []
+            let noti = await this.NotificationModel.find({ owner: req.user }).sort({ createdOn: -1 }).limit(20)
+            let likedNotis = []
+            let commentedNotis = []
             noti.map((n) => {
-                if (n.actionBy.length === 0) return
-                x.push
-                    ({
-                        type: n.NotificationType,
-                        message: this.formatNotification(n.actionBy),
-                        postID: n.postID,
-                        _id: n._id,
-                        time: n.actionBy[n.actionBy.length - 1]?.actionAt,
-                        isSeen: n.isSeen
-                    })
-            });
-            x.sort((a, b) => {
-                return b.time - a.time
+                if (n?.actionBy[0]?.action === 'reacted') {
+                    likedNotis.push(n)
+                } else {
+                    commentedNotis.push(n)
+                }
             })
+            let x = {
+                liked: likedNotis,
+                commented: commentedNotis,
+                unseenNotiCount: noti.filter((n) => !n.isSeen).length
+            }
             delete req.user;
             return new SuccessDTO('Notifications retrieved successfully', x);
         } catch (error) {
@@ -111,6 +108,24 @@ export class MainService {
         }
     }
 
+    async markAllAsRead(
+        req: requestobjectdto
+    ): Promise<SuccessDTO | NotAcceptableException> {
+        try {
+            let noti = await this.NotificationModel.find({ owner: req.user });
+            if (!noti) {
+                throw new NotAcceptableException('Something went wrong!');
+            }
+            noti.map((n) => {
+                n.isSeen = true;
+                n.save();
+            })
+            return new SuccessDTO('All notifications marked as seen successfully');
+        } catch (error) {
+            throw error
+        }
+    }
+
     async markSeenNoti(
         req: requestobjectdto,
         id: string
@@ -139,9 +154,14 @@ export class MainService {
             let p = await this.UserModel.findOne({ username: req.user })
             if (!p) throw new NotAcceptableException('Session Invalid');
             return new SuccessDTO('pong', {
-                userName: p.username, id: p._id, userType: p.isSuperAdmin ? 'Admin' : 'User', userCoolDown: p.coolDown > new Date() ?
+                userName: p.username,
+                id: p._id,
+                userType: p.isSuperAdmin ? 'Admin' : 'User',
+                userCoolDown: p.coolDown > new Date() ?
                     p.coolDown.getTime() - new Date().getTime()
-                    : false, userBan: !p.isUserActive
+                    : false,
+                userBan: !p.isUserActive,
+                userPremium: p.isPremium,
             });
         } catch (error) {
             throw error
@@ -161,7 +181,7 @@ export class MainService {
                 if (!userID.match(/^[0-9a-fA-F]{24}$/)) {
                     let user = await this.UserModel.findOne({ username: userID }).select('-pinCode');
                     if (!user) throw new NotAcceptableException();
-                    let totalPostCount = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).limit(10).countDocuments()
+                    let totalPostCount = await this.PostModel.find({ user: user.username }).sort({ createdAt: -1 }).countDocuments()
                     let recentlyActive = user.lastActive;
                     let userName = user.username;
                     let joinedDate = user.joinedDate
@@ -207,9 +227,9 @@ export class MainService {
 
             if (type === 'posts') {
                 if (!userID.match(/^[0-9a-fA-F]{24}$/)) {
-                    let user = await this.UserModel.findOne({ username: userID }).select('-pinCode');
+                    let user = await this.UserModel.findOne({ username: userID, }).select('-pinCode');
                     if (!user) throw new NotAcceptableException();
-                    let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true }).sort({ createdAt: -1 }).select('-comments -reactions ')
+                    let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true, isAnonymous: false }).sort({ createdAt: -1 }).select('-comments -reactions ')
                     totalPosts = totalPosts.map(post => {
                         post.reactionCount = post.reactedBy?.length;
                         post.reactedBy = undefined;
@@ -223,7 +243,7 @@ export class MainService {
 
                 let user = await this.UserModel.findOne({ _id: userID }).select('-pinCode');
                 if (!user) throw new NotAcceptableException();
-                let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true }).sort({ createdAt: -1 }).select('-comments -reactions  -reactedBy')
+                let totalPosts = await this.PostModel.find({ user: user.username, isVisible: true, isAnonymous: false }).sort({ createdAt: -1 }).select('-comments -reactions  -reactedBy')
                 totalPosts = totalPosts.map(post => {
                     post.reactionCount = post.reactedBy?.length;
                     post.reactedBy = undefined;
@@ -388,7 +408,7 @@ export class MainService {
             })
                 .select('lastActive  username')
                 .sort({ lastActive: -1 })
-                .limit(20);
+                .limit(50);
 
             return new SuccessDTO('Recently active users retrieved successfully', users);
         } catch (error) {

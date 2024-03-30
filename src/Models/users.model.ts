@@ -7,6 +7,7 @@ export interface UserSchemaDTO {
     joinedDate?: Date;
     lastActive?: Date | any;
     isSuperAdmin: boolean;
+    isPremium?: boolean;
     isUserActive?: boolean;
     bio?: string;
     _id: string;
@@ -21,6 +22,7 @@ export interface UserSchema extends mongoose.Document {
     username: string;
     pincode: string;
     isSuperAdmin: boolean;
+    isPremium?: boolean;
     profileImageUrl?: string;
     _id: string;
     bio?: string;
@@ -43,7 +45,8 @@ export const Users = new mongoose.Schema<UserSchema>({
     coolDown: { type: Date, default: null },
     isUserActive: { type: Boolean, default: true },
     profileImageUrl: { type: String, default: 'default.png' },
-    postCoolDown: { type: Date, default: null }
+    postCoolDown: { type: Date, default: null },
+    isPremium: { type: Boolean, default: false }
 });
 
 

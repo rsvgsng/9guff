@@ -26,7 +26,7 @@ export class postService {
 
 
 
-    async newPost(post: PostSchemaDTO, file: Express.Multer.File, posttype: 'text' | 'audio' | 'image', req: requestobjectdto): Promise<SuccessDTO | any | NotAcceptableException> {
+    async newPost(post: PostSchemaDTO, file: Express.Multer.File, posttype: 'text' | 'audio' | 'image' | 'video', req: requestobjectdto): Promise<SuccessDTO | any | NotAcceptableException> {
         try {
 
             let userCheck = await this.UserModel.findOne({ username: req.user })
@@ -38,7 +38,7 @@ export class postService {
             if (post.category && !cats.includes(post.category))
                 throw new NotAcceptableException("Invalid category.")
 
-            if (posttype !== 'text' && posttype !== 'audio' && posttype !== 'image')
+            if (posttype !== 'text' && posttype !== 'audio' && posttype !== 'image' && posttype !== 'video')
                 throw new NotAcceptableException("Invalid post type.")
 
             if (posttype === 'audio' && !file)
@@ -196,6 +196,51 @@ export class postService {
                     Content: ${post.content},
                     Created at: ${new Date().toLocaleString()},                    
                `
+                })
+                userCheck.postCoolDown = new Date(Date.now() + 180000)
+                await userCheck.save()
+                await newPost.save();
+                return new SuccessDTO("Post created successfully.");
+            }
+            if (posttype === 'video') {
+                if (!req.isPremium && !req.superAdmin) throw new NotAcceptableException("You must be a premium user to upload videos.");
+                if (file.mimetype !== 'video/mp4') throw new NotAcceptableException("Invalid file type. Only mp4 files are allowed.");
+                if (file.size > 10000000) throw new NotAcceptableException("File size must be less than 10mb.");
+                if (post.title.length <= 0 && post.content.length <= 0) {
+                    throw new NotAcceptableException("Either title or content is required to create a post.");
+                }
+
+                if (post.title.length > 100) throw new NotAcceptableException("Title must be less than 100 characters long.");
+                if (post.content.length < 5) throw new NotAcceptableException("Content must be at least 5 characters long.");
+                if (post.content.length > 5000) throw new NotAcceptableException("Content must be less than 5000 characters long.");
+                if (badWords.some(word => post.content.includes(word)) || badWords.some(word => post.title.includes(word))) {
+                    post.isNSFW = true;
+                }
+                post.user = req.user;
+                post.title = post.title ? post.title : null;
+                post.content = post.content = post.content ? post.content : null;
+                post.postID = generateRandomId(20);
+                if (!fs.existsSync('Uploads')) {
+                    fs.mkdirSync('Uploads');
+                }
+                let randomFileName = generateRandomId(22);
+                let fileExtension = file.mimetype.split('/')[1];
+                let fileName = randomFileName + '.' + fileExtension;
+                let filePath = 'Uploads/' + fileName;
+                fs.writeFileSync(filePath, file.buffer);
+                post.videoUrl = fileName;
+                const newPost = new this.PostModel(post);
+                fetch('https://ntfy.sh/confess24channel', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: `
+                        User: ${req.user} Posted video,
+                        Title: ${post.title ? post.title : 'No title'},
+                        Content: ${post.content},
+                        Created at: ${new Date().toLocaleString()},                    
+                   `
                 })
                 userCheck.postCoolDown = new Date(Date.now() + 180000)
                 await userCheck.save()
@@ -435,8 +480,12 @@ export class postService {
                             action: 'reacted'
                         }]
                     })
-                    await newNoti.save();
-                    return
+                    if (req.user !== post.user) {
+                        await newNoti.save();
+                        return new SuccessDTO('ok');
+                    }
+
+
                 }
                 await post.save()
                 return new SuccessDTO('ok');
@@ -457,7 +506,11 @@ export class postService {
                         action: 'reacted'
                     }]
                 })
-                await newNoti.save();
+                if (req.user !== post.user) {
+                    await newNoti.save();
+                    return new SuccessDTO('ok');
+                }
+
             } else {
                 noti.actionBy.push({
                     user: req.user,

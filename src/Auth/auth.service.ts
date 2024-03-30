@@ -45,7 +45,7 @@ export class authService {
             if (!username || !pincode) throw new ForbiddenException('Please provide a username and pincode')
             if (pincode.length !== 4) throw new ForbiddenException('Pincode must be 4 digits')
             if (username.length < 3) throw new ForbiddenException('Username must be at least 3 characters')
-            if (username.length > 10) throw new ForbiddenException('Username must be less than 10 characters')
+            if (username.length > 20) throw new ForbiddenException('Username must be less than 20 characters')
             if (forbiddenUsernames.includes(username.toLowerCase())) throw new ForbiddenException('Username is forbidden')
             if (!/^[a-zA-Z0-9_]*$/.test(username)) throw new ForbiddenException('Username must contain only letters, numbers and underscores')
             let isValid = await verify(secret, htoken)

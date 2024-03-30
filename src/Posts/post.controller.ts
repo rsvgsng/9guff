@@ -18,7 +18,7 @@ export class PostController {
     async newPost(
         @Body() post: PostSchemaDTO,
         @Req() req: requestobjectdto,
-        @Query("posttype") posttype: 'text' | 'audio' | 'image',
+        @Query("posttype") posttype: 'text' | 'audio' | 'image' | 'video',
         @UploadedFile() file: Express.Multer.File
     ) {
         return this.postService.newPost(post, file, posttype, req);

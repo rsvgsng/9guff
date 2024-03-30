@@ -28,6 +28,7 @@ export interface PostSchemaDTO {
         angry?: number;
     };
     views?: number;
+    videoUrl: string;
     reactionCount?: number;
     commentCount?: number;
     isNSFW: boolean;
@@ -72,7 +73,9 @@ export interface PostSchema extends mongoose.Document {
         reaction?: string;
     }[];
     loli: any;
+    videoUrl: string;
     reactionCount?: number;
+
     isNSFW?: boolean;
     comments?: {
         user?: string;
@@ -91,6 +94,7 @@ export const Posts = new mongoose.Schema<PostSchema>({
     photoUrl: { type: String, default: null },
     audioLength: { type: String, default: null },
     audioUrl: { type: String, default: null },
+    videoUrl: { type: String, default: null },
     category: { type: String, required: true },
     userDP: { type: String, required: false },
     reactedBy: [{
@@ -101,6 +105,7 @@ export const Posts = new mongoose.Schema<PostSchema>({
     reactionCount: { type: Number, default: 0 },
     commentCount: { type: Number, default: 0 },
     postID: { type: String, required: true },
+
     isVisible: { type: Boolean, default: true },
     disableComments: { type: Boolean, default: false },
     content: {

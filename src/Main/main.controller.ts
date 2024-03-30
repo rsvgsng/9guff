@@ -48,6 +48,14 @@ export class MainController {
     }
 
     @UseGuards(AuthGuard)
+    @Put("markAllAsRead")
+    async markAllAsRead(
+        @Req() req: requestobjectdto,
+    ) {
+        return this.mainService.markAllAsRead(req);
+    }
+
+    @UseGuards(AuthGuard)
     @Get("user/:id")
     async getUserProfile(
         @Param("id") id: string,

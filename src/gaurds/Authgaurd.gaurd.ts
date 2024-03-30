@@ -26,6 +26,9 @@ export class AuthGuard implements CanActivate {
                 if (user.isSuperAdmin) {
                     request.superAdmin = true
                 }
+                if (user.isPremium) {
+                    request.isPremium = true
+                }
                 user.lastActive = new Date()
                 user.save()
                 request.user = (user['username']);
@@ -70,7 +73,5 @@ export class SuperAuthGarud implements CanActivate {
 
     }
 }
-
-
 
 

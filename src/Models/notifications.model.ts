@@ -12,6 +12,7 @@ export interface NotificationDTO {
         actionAt?: Date;
     }[];
     isSeen?: boolean;
+    createdOn?: Date;
 }
 
 export interface NotificationsSchema extends mongoose.Document {
@@ -19,6 +20,7 @@ export interface NotificationsSchema extends mongoose.Document {
     owner: string;
     message?: string;
     postID: string;
+    createdOn?: Date;
     actionBy?: {
         user?: string;
         action?: string;
@@ -30,8 +32,10 @@ export interface NotificationsSchema extends mongoose.Document {
 export const Notifications = new mongoose.Schema<NotificationsSchema>({
     NotificationType: { type: String, required: true },
     owner: { type: String, required: true },
+
     message: { type: String, required: false },
     postID: { type: String, required: false },
+    createdOn: { type: Date, default: Date.now },
     actionBy: [{
         user: { type: String },
         action: { type: String },
