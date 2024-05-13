@@ -26,14 +26,9 @@ Before running the application, make sure you have the following installed:
   npm install
   ```
 
-3. Configure the environment variables:
+3. Connect to Mongodb:
 
-  Create a `.env` file in the root directory and provide the necessary environment variables. For example:
-
-  ```plaintext
-  PORT=3000
-  MONGODB_URI=mongodb://localhost:27017/9guff
-  ```
+  Figure it out how to connect to database
 
 4. Start the application:
 
@@ -41,7 +36,7 @@ Before running the application, make sure you have the following installed:
   npm run start
   ```
 
-  The application will be running at `http://localhost:3000`.
+  The application will be running at `http://localhost:{yourPort}`.
 
 
 ## Contributing
