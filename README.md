@@ -28,7 +28,10 @@ Before running the application, make sure you have the following installed:
 
 3. Connect to Mongodb:
 
-  Figure it out how to connect to database
+  ```bash
+   Figure it out how to connect to database
+  ```
+ 
 
 4. Start the application:
 
