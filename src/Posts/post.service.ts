@@ -72,18 +72,18 @@ export class postService {
                 userCheck.postCoolDown = new Date(Date.now() + 180000)
                 await userCheck.save()
                 await newPost.save();
-                fetch('https://ntfy.sh/confess24channel', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: `
-                    New post TEXT by ${req.user},
-                    Title: ${post.title ? post.title : 'No title'},
-                    Content: ${post.content},
-                    Created at: ${new Date().toLocaleString()},                    
-               `
-                })
+               //  fetch('https://{Alerter}', {
+               //      method: 'POST',
+               //      headers: {
+               //          'Content-Type': 'application/json',
+               //      },
+               //      body: `
+               //      New post TEXT by ${req.user},
+               //      Title: ${post.title ? post.title : 'No title'},
+               //      Content: ${post.content},
+               //      Created at: ${new Date().toLocaleString()},                    
+               // `
+               //  })
                 return new SuccessDTO("Post created successfully.");
             }
 
